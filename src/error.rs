@@ -8,6 +8,8 @@ use std::io;
 #[derive(Clone, Debug, PartialEq)]
 pub enum Error {
     AlreadyInstantiated,
+    WaitTimeout,
+    WaitInterrupt,
     PermissionDenied,
     DeviceNotFound,
     OtherDeviceError
@@ -23,6 +25,8 @@ impl error::Error for Error {
     fn description(&self) -> &str {
         match *self {
             Error::AlreadyInstantiated => "already instantiated",
+            Error::WaitTimeout => "wait timeout",
+            Error::WaitInterrupt => "wait interrupted",
             Error::PermissionDenied => "permission denied",
             Error::DeviceNotFound => "device not found",
             Error::OtherDeviceError => "other device error",

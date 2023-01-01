@@ -87,9 +87,11 @@ use std::io::{self, Read};
 use std::marker::PhantomData;
 use std::mem;
 use std::ops::{BitOrAssign, Shl};
+use std::os::unix::prelude::AsRawFd;
 use std::ptr;
 use std::result;
 use std::sync::atomic::{AtomicBool, Ordering, ATOMIC_BOOL_INIT, compiler_fence};
+use std::time::Duration;
 
 
 
@@ -701,6 +703,27 @@ impl EvtoutIrq {
         unsafe { mem::transmute::<[u8; 4], u32>(buffer) }
     }
 
+    /// Waits for associated event out with a timeout.
+    ///
+    /// # Panics
+    ///
+    /// This function should not panic as long as the UIO module is loaded, which is theoretically
+    /// guaranteed at this point since `Pruss` could not have been created otherwise.
+    pub fn wait_timeout(&self, timeout: Duration) -> Result<u32> {
+        let mut pollfd = libc::pollfd {
+            fd: self.file.as_raw_fd() as libc::c_int,
+            events: libc::POLLIN,
+            revents: 0,
+        };
+        let res = unsafe { libc::poll(&mut pollfd, 1, timeout.as_millis() as libc::c_int) };
+        match (res, unsafe { *libc::__errno_location() }) {
+            (1, _) => Ok(self.wait()),
+            (0, _) => Err(Error::WaitTimeout),
+            (-1, errno) if errno == libc::EINTR => Err(Error::WaitInterrupt),
+            _ => Err(Error::OtherDeviceError),
+        }
+    }
+    
     /// Returns the associated event out.
     pub fn get_evtout(&self) -> Evtout {
         self.event
