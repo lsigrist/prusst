@@ -33,7 +33,7 @@ fn main() {
             prusst::Error::DeviceNotFound
                 => panic!("The PRU subsystem could not be found: are you sure the `uio_pruss` \
                            module is loaded and supported by your kernel?"),
-            prusst::Error::OtherDeviceError
+            prusst::Error::OtherDeviceError | prusst::Error::WaitTimeout | prusst::Error::WaitInterrupt
                 => panic!("An unidentified problem occured with the PRU subsystem: \
                            do you have a valid overlay loaded?")
         }
