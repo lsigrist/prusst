@@ -144,7 +144,9 @@ impl<'a> Pruss<'a> {
 
         // Create memory mapped devices.
         let file = try!(SyncFile::new(PRUSS_DEVICE_PATH));
+        let prumem_base = try!(memsize(UIO_PRUMEM_BASE_PATH));
         let prumem_size = try!(memsize(UIO_PRUMEM_SIZE_PATH));
+        let hostmem_base = try!(memsize(UIO_HOSTMEM_BASE_PATH));
         let hostmem_size = try!(memsize(UIO_HOSTMEM_SIZE_PATH));
         let prumap = try!(MemMap::new(file.fd, prumem_size, 0));
         let hostmap = try!(MemMap::new(file.fd, hostmem_size, 1));
@@ -164,10 +166,10 @@ impl<'a> Pruss<'a> {
                            IRAM1_SIZE);
 
         // Create memory views.
-        let dram0 = MemSegment::new(prumap.base, DRAM0_OFFSET, DRAM0_OFFSET + DRAM0_SIZE);
-        let dram1 = MemSegment::new(prumap.base, DRAM1_OFFSET, DRAM1_OFFSET + DRAM1_SIZE);
-        let dram2 = MemSegment::new(prumap.base, DRAM2_OFFSET, DRAM2_OFFSET + DRAM2_SIZE);
-        let hostram = MemSegment::new(hostmap.base, 0, hostmem_size);
+        let dram0 = MemSegment::new(prumap.base, DRAM0_OFFSET, DRAM0_OFFSET + DRAM0_SIZE, prumem_base);
+        let dram1 = MemSegment::new(prumap.base, DRAM1_OFFSET, DRAM1_OFFSET + DRAM1_SIZE, prumem_base);
+        let dram2 = MemSegment::new(prumap.base, DRAM2_OFFSET, DRAM2_OFFSET + DRAM2_SIZE, prumem_base);
+        let hostram = MemSegment::new(hostmap.base, 0, hostmem_size, hostmem_base);
 
         // Voila.
         Ok(Pruss {
@@ -417,15 +419,17 @@ pub struct MemSegment<'a> {
     // It is necessary to keep the `from` index rather than offset the `base` pointer because
     // alignment must be checked when allocating memory for arbitrary types.
     base: *mut u8,
+    pru_base: usize,
     from: usize,
     to: usize,
     _memory_marker: PhantomData<&'a [u8]>,
 }
 
 impl<'a> MemSegment<'a> {
-    fn new<'b>(base: *mut u8, from: usize, to: usize) -> MemSegment<'b> {
+    fn new<'b>(base: *mut u8, from: usize, to: usize, pru_base: usize) -> MemSegment<'b> {
         MemSegment {
             base: base,
+            pru_base: pru_base,
             from: from,
             to: to,
             _memory_marker: PhantomData,
@@ -480,6 +484,16 @@ impl<'a> MemSegment<'a> {
         self.to
     }
 
+    /// PRU physical address at which the segment starts (global address for use with PRU).
+    pub fn pru_begin(&self) -> usize {
+        self.pru_base + self.from
+    }
+
+    /// PRU physical address at which the segment ends (global address for use with PRU).
+    pub fn pru_end(&self) -> usize {
+        self.pru_base + self.to
+    }
+
     /// Splits the memory segment into two at the given byte position.
     ///
     /// Note that positions (addresses) are absolute and remain valid after the splitting
@@ -489,12 +503,14 @@ impl<'a> MemSegment<'a> {
         assert!(position >= self.from && position <= self.to);
         (MemSegment {
             base: self.base,
+            pru_base: self.pru_base,
             from: self.from,
             to: position,
             _memory_marker: PhantomData,
         },
          MemSegment {
             base: self.base,
+            pru_base: self.pru_base,
             from: position,
             to: self.to,
             _memory_marker: PhantomData,

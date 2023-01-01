@@ -2,7 +2,9 @@
 // System paths
 pub const PRUSS_DEVICE_PATH: &'static str = "/dev/uio0";
 pub const EVTOUT_DEVICE_ROOT_PATH: &'static str = "/dev/uio";
+pub const UIO_PRUMEM_BASE_PATH: &'static str = "/sys/class/uio/uio0/maps/map0/addr";
 pub const UIO_PRUMEM_SIZE_PATH: &'static str = "/sys/class/uio/uio0/maps/map0/size";
+pub const UIO_HOSTMEM_BASE_PATH: &'static str = "/sys/class/uio/uio0/maps/map1/addr";
 pub const UIO_HOSTMEM_SIZE_PATH: &'static str = "/sys/class/uio/uio0/maps/map1/size";
 
 
